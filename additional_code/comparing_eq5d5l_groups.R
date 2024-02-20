@@ -1,3 +1,5 @@
+library(tidyverse)
+
 QALD_data=read.csv("./data/QALD_data.csv")
 demographic_data=read.csv("./data/demographic_data.csv")
 eq5d_data=read.csv("./data/eq5d_data.csv")
