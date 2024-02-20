@@ -1,3 +1,5 @@
+library(tidyverse)
+
 # MAIN ANALYSES
 
 ## Norway
