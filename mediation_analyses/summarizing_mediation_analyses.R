@@ -1,101 +1,11 @@
 library(tidyverse)
 
-all_mediation_output_combined_cohort=read.csv("./output/mediation_analyses/all_mediation_output_combined_cohort.csv")
-all_mediation_output_combined_cohort_by_country=read.csv("./output/mediation_analyses/all_mediation_output_combined_cohort_by_country.csv")
 all_mediation_output_Norway=read.csv("./output/mediation_analyses/all_mediation_output_Norway.csv")
 all_mediation_output_UK=read.csv("./output/mediation_analyses/all_mediation_output_UK.csv")
+all_mediation_output_Russia=read.csv("./output/mediation_analyses/all_mediation_output_Russia.csv")
 
 all_mediation_output_Norway_sensitivity_analysis=read.csv("./output/mediation_analyses/all_mediation_output_Norway_sensitivity_analysis.csv")
 all_mediation_output_UK_sensitivity_analysis=read.csv("./output/mediation_analyses/all_mediation_output_UK_sensitivity_analysis.csv")
-
-# COMBINED MIC COHORT
-
-## main analysis
-all_mediation_output_combined_cohort_effects=all_mediation_output_combined_cohort%>%
-  filter(effect!='pm_emp_full_time_vs_all')%>%
-  filter(effect!='pm_emp_full_time_vs_unemp')%>%
-  filter(effect!='de_emp_full_time_vs_unemp')%>%
-  filter(effect!='ie_emp_full_time_vs_unemp')%>%
-  filter(effect!='pm_sex')
-
-all_mediation_output_combined_cohort_effects$measure=c("NDE_full_time_all_others","NIE_full_time_all_others",
-                                                       "NDE_sex","NIE_sex")
-
-all_mediation_output_combined_cohort_effects$measure_group=c("SES","SES","Sex","Sex")
-
-ggplot(all_mediation_output_combined_cohort_effects,aes(x=measure,y=est))+
-  geom_point(aes(group=measure_group,col=measure_group),size=4)+
-  geom_errorbar(aes(ymin=LL,ymax=UL,col=measure_group),width=0.5)+
-  theme_classic()+
-  theme(axis.text.x = element_text(angle = 45, hjust=1,size=12),
-        axis.text.y = element_text(size=15),
-        axis.title.x = element_blank(),
-        axis.title.y = element_text(size=15))+
-  ylab("effect size")+
-  scale_x_discrete(labels=c('NDE for full-time employment', 
-                            'NDE for female sex at birth',
-                            'NIE for full-time employment',
-                            'NDE for female sex at birth'))+
-  theme(legend.position='none')
-
-ggsave("./figures/mediation/all_mediation_output_effects_combined_cohort.png")
-
-all_mediation_output_combined_cohort_pnm=all_mediation_output_combined_cohort%>%
-  filter(effect%in%c('pm_emp_full_time_vs_all',
-                     'pm_sex'))%>%
-  mutate(LL_p_non_mediated=1-UL)%>%
-  mutate(est_p_non_mediated=1-est)%>%
-  mutate(UL_p_non_mediated=1-LL)
-
-all_mediation_output_combined_cohort_pnm$measure=c("prop_non_mediated_full_time_all_others",
-                                                   "prop_non_mediated_sex")
-
-ggplot(all_mediation_output_combined_cohort_pnm,aes(x=measure,y=est_p_non_mediated))+
-  geom_point(aes(group=measure,col=measure),size=4)+
-  geom_errorbar(aes(ymin=LL_p_non_mediated,ymax=UL_p_non_mediated,col=measure),width=0.5)+
-  theme_classic()+
-  theme(axis.text.x = element_text(angle = 45, hjust=1,size=11),
-        axis.text.y = element_text(size=15),
-        axis.title.x = element_blank(),
-        axis.title.y = element_text(size=15))+
-  ylab("effect size")+
-  scale_x_discrete(labels=c("proportion non-mediated for full-time employment ",
-                            "proportion non-mediated for female sex at birth"))+
-  theme(legend.position='none')
-
-ggsave("./figures/mediation/all_mediation_output_pnm_combined_cohort.png")
-
-## country-specific analyses
-all_mediation_output_combined_cohort_by_country$measure=c("NDE_full_time_all_others","NIE_full_time_all_others",
-                                                       "NDE_sex","NIE_sex",
-                                                       "NDE_full_time_all_others","NIE_full_time_all_others",
-                                                       "NDE_sex","NIE_sex",
-                                                       "NDE_full_time_all_others","NIE_full_time_all_others",
-                                                       "NDE_sex","NIE_sex",
-                                                       "NDE_full_time_all_others","NIE_full_time_all_others",
-                                                       "NDE_sex","NIE_sex")
-
-all_mediation_output_combined_cohort_by_country$measure_group=c("SES","SES","Sex","Sex")
-all_mediation_output_combined_cohort_by_country$est[11]=NA
-all_mediation_output_combined_cohort_by_country$est[12]=NA
-
-plot=ggplot(all_mediation_output_combined_cohort_by_country,aes(x=measure,y=est))+
-  geom_point(aes(group=measure_group,col=measure_group),size=4)+
-  geom_errorbar(aes(ymin=LL,ymax=UL,col=measure_group),width=0.5)+
-  theme_classic()+
-  theme(axis.text.x = element_text(angle = 45, hjust=1,size=9),
-        axis.text.y = element_text(size=15),
-        axis.title.x = element_blank(),
-        axis.title.y = element_text(size=15))+
-  ylab("effect size")+
-  scale_x_discrete(labels=c('NDE for full-time employment', 
-                            'NDE for female sex at birth',
-                            'NIE for full-time employment',
-                            'NDE for female sex at birth'))+
-  theme(legend.position='none')
-plot+facet_wrap(~Country)
-
-ggsave("./figures/mediation/all_mediation_output_effects_combined_cohort_by_country.png")
 
 # NORWAY
 
@@ -369,6 +279,60 @@ ggplot(all_mediation_output_UK_pnm_sensitivity,aes(x=measure,y=est_p_non_mediate
                             "proportion non-mediated for female sex at birth"))+
   theme(legend.position='none')
 ggsave("./figures/mediation/all_mediation_output_pnm_UK_sensitivity.png")
+
+# RUSSIA
+
+all_mediation_output_Russia_effects=all_mediation_output_Russia%>%
+  filter(effect!='pm_emp_full_time_vs_all')%>%
+  filter(effect!='pm_sex')
+
+all_mediation_output_Russia_effects$measure=c("NDE_full_time_all_others","NIE_full_time_all_others",
+                                                       "NDE_sex","NIE_sex")
+
+all_mediation_output_Russia_effects$measure_group=c("SES","SES","Sex","Sex")
+
+ggplot(all_mediation_output_Russia_effects,aes(x=measure,y=est))+
+  geom_point(aes(group=measure_group,col=measure_group),size=4)+
+  geom_errorbar(aes(ymin=LL,ymax=UL,col=measure_group),width=0.5)+
+  theme_classic()+
+  theme(axis.text.x = element_text(angle = 45, hjust=1,size=12),
+        axis.text.y = element_text(size=15),
+        axis.title.x = element_blank(),
+        axis.title.y = element_text(size=15))+
+  ylab("effect size")+
+  scale_x_discrete(labels=c('NDE for full-time employment', 
+                            'NDE for female sex at birth',
+                            'NIE for full-time employment',
+                            'NIE for female sex at birth'))+
+  theme(legend.position='none')
+
+ggsave("./figures/mediation/all_mediation_output_effects_Russia.png")
+
+all_mediation_output_Russia_pnm=all_mediation_output_Russia%>%
+  filter(effect%in%c('pm_emp_full_time_vs_all',
+                     'pm_sex'))%>%
+  mutate(LL_p_non_mediated=1-UL)%>%
+  mutate(est_p_non_mediated=1-est)%>%
+  mutate(UL_p_non_mediated=1-LL)
+
+all_mediation_output_Russia_pnm$measure=c("prop_non_mediated_full_time_all_others",
+                                                   "prop_non_mediated_sex")
+
+ggplot(all_mediation_output_Russia_pnm,aes(x=measure,y=est_p_non_mediated))+
+  geom_point(aes(group=measure,col=measure),size=4)+
+  geom_errorbar(aes(ymin=LL_p_non_mediated,ymax=UL_p_non_mediated,col=measure),width=0.5)+
+  theme_classic()+
+  theme(axis.text.x = element_text(angle = 45, hjust=1,size=11),
+        axis.text.y = element_text(size=15),
+        axis.title.x = element_blank(),
+        axis.title.y = element_text(size=15))+
+  ylab("effect size")+
+  scale_x_discrete(labels=c("proportion non-mediated for full-time employment ",
+                            "proportion non-mediated for female sex at birth"))+
+  theme(legend.position='none')
+
+ggsave("./figures/mediation/all_mediation_output_pnm_Russia.png")
+
 
 
 
