@@ -8,332 +8,7 @@ library(randomForest)
 # read in data and subset
 dataset_Norway=read.csv("./data/QALDs_full_dataset_Norway.csv")
 dataset_UK=read.csv("./data/QALDs_full_dataset_UK.csv")
-dataset_combined_cohort=read.csv("./data/QALDs_full_dataset_combined_cohort.csv")
-
-# COMBINED MIC COHORT
-
-dataset_combined_cohort_binary_vars=dataset_combined_cohort%>%
-  dplyr::select(-AGE,-SEX,-QALD_final_weighted,-employment_status,-employment_status_category,-severity_indicator,-COUNTRY)
-dataset_combined_cohort_binary_vars[dataset_combined_cohort_binary_vars==1]='PRESENT'
-dataset_combined_cohort_binary_vars[dataset_combined_cohort_binary_vars==0]='ABSENT'
-
-dataset_combined_cohort_final=cbind.data.frame(dataset_combined_cohort[,c("AGE","SEX","COUNTRY","employment_status",
-                                                                          "employment_status_category","severity_indicator","QALD_final_weighted")],
-                                               dataset_combined_cohort_binary_vars)%>%
-  mutate(employment_status=as.factor(employment_status))%>%
-  mutate(employment_status_category=as.factor(employment_status_category))
-
-## INDIVIDUAL RF ## 
-
-store_RF_results_combined_cohort=as.data.frame(matrix(ncol=3,nrow=0))
-colnames(store_RF_results_combined_cohort)=c("variable","inc_MSE","run")
-
-for (i in 1:100){
-  
-  train_split_indices_combined_cohort=createDataPartition(dataset_combined_cohort_final$QALD_final_weighted,p=0.8,list=FALSE)
-  dataset_train_combined_cohort=dataset_combined_cohort_final[train_split_indices_combined_cohort,]
-  #https://stackoverflow.com/questions/31968623/how-to-check-whether-a-column-contains-only-identical-elements-in-r
-  dataset_train_combined_cohort=dataset_train_combined_cohort[,apply(dataset_train_combined_cohort, 2, function(a) length(unique(a))>1)]
-  
-  RF_train_combined_cohort=randomForest(QALD_final_weighted~.,data=dataset_train_combined_cohort,importance=TRUE)
-  store_RF_results_combined_cohort=rbind.data.frame(store_RF_results_combined_cohort,
-                                                    cbind.data.frame(variable=rownames(RF_train_combined_cohort$importance),
-                                                                     inc_MSE=as.data.frame(RF_train_combined_cohort$importance)[,1],
-                                                                     run=rep(i,ncol(dataset_train_combined_cohort)-1)))
-  
-}
-
-store_RF_results_combined_cohort_summarized=store_RF_results_combined_cohort%>%
-  group_by(variable)%>%
-  summarise(mean_inc_MSE=mean(inc_MSE))
-
-store_RF_results_combined_cohort_summarized$variable<-c("AGE","ASTHMA",
-                                                        "CHRONIC CARDIAC DISEASE (NOT HYPERTENSION)",
-                                                        "CHRONIC HEMATOLOGICAL DISEASE",
-                                                        "CHRONIC KIDNEY DISEASE",
-                                                        "CHRONIC NEUROLOGICAL DISORDER",
-                                                        "CHRONIC PULMONARY DISEASE (NOT ASTHMA)",
-                                                        "COUNTRY","DEMENTIA",
-                                                        "TYPE 1 DIABETES", "TYPE 2 DIABETES",
-                                                        "DIABETES (TYPE NOT SPECIFIED)", 
-                                                        "HIV", "HYPERTENSION",
-                                                        "MALIGNANT NEOPLASM", 
-                                                        "PSYCHOLOGICAL_DISORDER", "MILD LIVER DISEASE",
-                                                        "OBESITY", "OTHER",
-                                                        "RHEUMATOLOGICAL DISORDER",
-                                                        "SEX", "SMOKING", 
-                                                        "EMPLOYMENT STATUS", "EMPLOYMENT STATUS CATEGORY","SEVERITY INDICATOR")
-
-
-ggplot(store_RF_results_combined_cohort_summarized,aes(x=reorder(variable,mean_inc_MSE),y=mean_inc_MSE,fill=variable))+
-  geom_col(show.legend=FALSE)+coord_flip()+theme_classic()+ylab("% increase in MSE (averaged over runs)")+xlab("variable")
-
-ggsave("./figures/prediction/RF_individual_variable_importance_combined_cohort.pdf")
-
-## PRE-GROUPED RF ## 
-
-store_RF2_results_combined_cohort=as.data.frame(matrix(ncol=3,nrow=0))
-colnames(store_RF2_results_combined_cohort)=c("variable","inc_MSE","run")
-
-## run across 100 trees
-for (i in 1:100){
-  
-  train_split_indices_combined_cohort=createDataPartition(dataset_combined_cohort_final$QALD_final_weighted,p=0.8,list=FALSE)
-  dataset_train_combined_cohort=dataset_combined_cohort_final[train_split_indices_combined_cohort,]
-  
-  dataset_train_combined_cohort_x=dataset_train_combined_cohort%>%
-    mutate(PSYCHOLOGICAL_DISORDER=MENTAL_DISORDER)%>%
-    dplyr::select(-QALD_final_weighted,-MENTAL_DISORDER)
-  
-  dataset_train_combined_cohort_y=dataset_train_combined_cohort%>%
-    dplyr::select(QALD_final_weighted)
-  
-  train_combined_cohort=c()
-  train_combined_cohort$X=dataset_train_combined_cohort_x
-  train_combined_cohort$y=as.matrix(dataset_train_combined_cohort_y)
-  
-  group_1="AGE"
-  group_2=c("employment_status","SEX")
-  group_3=c("ASTHMA","CHRONIC_PULMONARY_DISEASE_NOT_ASTHMA",
-            "SMOKING")
-  group_4=c("OBESITY",
-            "DIABETES_MELLITUS_TYPE_1",
-            "DIABETES_MELLITUS_TYPE_2","DIABETES_MELLITUS_TYPE_NOT_SPECIFIED")
-  group_5=c("CHRONIC_CARDIAC_DISEASE_NOT_HYPERTENSION",
-            "HYPERTENSION")
-  group_6=c("CHRONIC_KIDNEY_DISEASE","MILD_LIVER_DISEASE")
-  group_7="RHEUMATOLOGICAL_DISORDER"
-  group_8=c("PSYCHOLOGICAL_DISORDER","CHRONIC_NEUROLOGICAL_DISORDER")
-  group_9="MALIGNANT_NEOPLASM"
-  group_10="OTHER"
-  group_11="COUNTRY"
-  group_12="severity_indicator"
-  
-  train_combined_cohort_X_ordered=cbind.data.frame(AGE=train_combined_cohort$X[,group_1],
-                                                   train_combined_cohort$X[,group_2],
-                                                   train_combined_cohort$X[,group_3],
-                                                   train_combined_cohort$X[,group_4],
-                                                   train_combined_cohort$X[,group_5],
-                                                   train_combined_cohort$X[,group_6],
-                                                   RHEMUATOLOGICAL_DISORDER=train_combined_cohort$X[,group_7],
-                                                   train_combined_cohort$X[,group_8],
-                                                   MALIGNANT_NEOPLASM=train_combined_cohort$X[,group_9],
-                                                   OTHER=train_combined_cohort$X[,group_10],
-                                                   COUNTRY=train_combined_cohort$X[,group_11],
-                                                   severity_indicator=train_combined_cohort$X[,group_12])
-  
-  factor_analysis2_train_combined_cohort=FAMD(train_combined_cohort_X_ordered[,group_2],graph=FALSE)
-  factor_analysis3_train_combined_cohort=FAMD(train_combined_cohort_X_ordered[,group_3],graph=FALSE)
-  factor_analysis4_train_combined_cohort=FAMD(train_combined_cohort_X_ordered[,group_4],graph=FALSE)
-  factor_analysis5_train_combined_cohort=FAMD(train_combined_cohort_X_ordered[,group_5],graph=FALSE)
-  factor_analysis6_train_combined_cohort=FAMD(train_combined_cohort_X_ordered[,group_6],graph=FALSE)
-  factor_analysis8_train_combined_cohort=FAMD(train_combined_cohort_X_ordered[,group_8],graph=FALSE)
-  
-  w_cluster2_quali_combined_cohort=(factor_analysis2_train_combined_cohort$quali.var$coord[,1])/sqrt(factor_analysis2_train_combined_cohort$eig[1,1])
-  
-  weighted_cluster2_vars_combined_cohort=train_combined_cohort_X_ordered[,group_2]%>%
-    mutate(employment_status=ifelse(employment_status=='Full Time Carer (Children or Other)',
-                                    w_cluster2_quali_combined_cohort[["Full Time Carer (Children or Other)"]],
-                                    ifelse(employment_status=='Medically Retired',
-                                           w_cluster2_quali_combined_cohort[["Medically Retired"]],
-                                           ifelse(employment_status=='Retired',
-                                                  w_cluster2_quali_combined_cohort[["Retired"]],
-                                                  ifelse(employment_status=='Student',
-                                                         w_cluster2_quali_combined_cohort[["Student"]],             
-                                                         ifelse(employment_status=='Unable to Work due to Chronic Illness',
-                                                                w_cluster2_quali_combined_cohort[["Unable to Work due to Chronic Illness"]],
-                                                                ifelse(employment_status=='Unemployed',
-                                                                       w_cluster2_quali_combined_cohort[["Unemployed"]],
-                                                                       ifelse(employment_status=='Working Full-Time',
-                                                                              w_cluster2_quali_combined_cohort[["Working Full-Time"]],
-                                                                              w_cluster2_quali_combined_cohort[["Working Part-Time"]]))))))))%>%
-    mutate(SEX=ifelse(SEX=='F',w_cluster2_quali_combined_cohort[["F"]],
-                      w_cluster2_quali_combined_cohort[["M"]]))
-  
-  combined_component_2_combined_cohort=data.frame(rowSums(weighted_cluster2_vars_combined_cohort))
-  
-  w2_cluster2_quali_combined_cohort=(factor_analysis2_train_combined_cohort$quali.var$coord[,2])/sqrt(factor_analysis2_train_combined_cohort$eig[2,1])
-  
-  weighted2_cluster2_vars_combined_cohort=train_combined_cohort_X_ordered[,group_2]%>%
-    mutate(employment_status=ifelse(employment_status=='Full Time Carer (Children or Other)',
-                                    w2_cluster2_quali_combined_cohort[["Full Time Carer (Children or Other)"]],
-                                    ifelse(employment_status=='Medically Retired',
-                                           w2_cluster2_quali_combined_cohort[["Medically Retired"]],
-                                           ifelse(employment_status=='Retired',
-                                                  w2_cluster2_quali_combined_cohort[["Retired"]],
-                                                  ifelse(employment_status=='Student',
-                                                         w2_cluster2_quali_combined_cohort[["Student"]],             
-                                                         ifelse(employment_status=='Unable to Work due to Chronic Illness',
-                                                                w2_cluster2_quali_combined_cohort[["Unable to Work due to Chronic Illness"]],
-                                                                ifelse(employment_status=='Unemployed',
-                                                                       w2_cluster2_quali_combined_cohort[["Unemployed"]],
-                                                                       ifelse(employment_status=='Working Full-Time',
-                                                                              w2_cluster2_quali_combined_cohort[["Working Full-Time"]],
-                                                                              w2_cluster2_quali_combined_cohort[["Working Part-Time"]]))))))))%>%
-    mutate(SEX=ifelse(SEX=='F',w2_cluster2_quali_combined_cohort[["F"]],
-                      w2_cluster2_quali_combined_cohort[["M"]]))
-  
-  combined2_component_2_combined_cohort=data.frame(rowSums(weighted2_cluster2_vars_combined_cohort))
-  
-  w_cluster3_quali_combined_cohort=(factor_analysis3_train_combined_cohort$quali.var$coord[,1])/sqrt(factor_analysis3_train_combined_cohort$eig[1,1])
-  
-  weighted_cluster3_vars_combined_cohort=train_combined_cohort_X_ordered[,group_3]%>%
-    mutate(ASTHMA=ifelse(ASTHMA=='PRESENT',w_cluster3_quali_combined_cohort[[2]],0))%>%
-    mutate(CHRONIC_PULMONARY_DISEASE_NOT_ASTHMA=ifelse(CHRONIC_PULMONARY_DISEASE_NOT_ASTHMA=='PRESENT',w_cluster3_quali_combined_cohort[[4]],0))%>%
-    mutate(SMOKING=ifelse(SMOKING=='PRESENT',w_cluster3_quali_combined_cohort[[6]],0))
-  
-  combined_component_3_combined_cohort=data.frame(rowSums(weighted_cluster3_vars_combined_cohort))
-  
-  w2_cluster3_quali_combined_cohort=(factor_analysis3_train_combined_cohort$quali.var$coord[,2])/sqrt(factor_analysis3_train_combined_cohort$eig[2,1])
-  
-  weighted2_cluster3_vars_combined_cohort=train_combined_cohort_X_ordered[,group_3]%>%
-    mutate(ASTHMA=ifelse(ASTHMA=='PRESENT',w2_cluster3_quali_combined_cohort[[2]],0))%>%
-    mutate(CHRONIC_PULMONARY_DISEASE_NOT_ASTHMA=ifelse(CHRONIC_PULMONARY_DISEASE_NOT_ASTHMA=='PRESENT',w2_cluster3_quali_combined_cohort[[4]],0))%>%
-    mutate(SMOKING=ifelse(SMOKING=='PRESENT',w2_cluster3_quali_combined_cohort[[6]],0))
-  
-  combined2_component_3_combined_cohort=data.frame(rowSums(weighted2_cluster3_vars_combined_cohort))
-  
-  w_cluster4_quali_combined_cohort=(factor_analysis4_train_combined_cohort$quali.var$coord[,1])/sqrt(factor_analysis4_train_combined_cohort$eig[1,1])
-  
-  weighted_cluster4_vars_combined_cohort=train_combined_cohort_X_ordered[,group_4]%>%
-    mutate(OBESITY=ifelse(OBESITY=='PRESENT',w_cluster4_quali_combined_cohort[[2]],0))%>%
-    mutate(DIABETES_MELLITUS_TYPE_1=ifelse(DIABETES_MELLITUS_TYPE_1=='PRESENT',w_cluster4_quali_combined_cohort[[4]],0))%>%
-    mutate(DIABETES_MELLITUS_TYPE_2=ifelse(DIABETES_MELLITUS_TYPE_2=='PRESENT',w_cluster4_quali_combined_cohort[[6]],0))%>%
-    mutate(DIABETES_MELLITUS_TYPE_NOT_SPECIFIED=ifelse(DIABETES_MELLITUS_TYPE_NOT_SPECIFIED=='PRESENT',w_cluster4_quali_combined_cohort[[8]],0))
-  
-  combined_component_4_combined_cohort=data.frame(rowSums(weighted_cluster4_vars_combined_cohort))
-  
-  w2_cluster4_quali_combined_cohort=(factor_analysis4_train_combined_cohort$quali.var$coord[,2])/sqrt(factor_analysis4_train_combined_cohort$eig[2,1])
-  
-  weighted2_cluster4_vars_combined_cohort=train_combined_cohort_X_ordered[,group_4]%>%
-    mutate(OBESITY=ifelse(OBESITY=='PRESENT',w2_cluster4_quali_combined_cohort[[2]],0))%>%
-    mutate(DIABETES_MELLITUS_TYPE_1=ifelse(DIABETES_MELLITUS_TYPE_1=='PRESENT',w2_cluster4_quali_combined_cohort[[4]],0))%>%
-    mutate(DIABETES_MELLITUS_TYPE_2=ifelse(DIABETES_MELLITUS_TYPE_2=='PRESENT',w2_cluster4_quali_combined_cohort[[6]],0))%>%
-    mutate(DIABETES_MELLITUS_TYPE_NOT_SPECIFIED=ifelse(DIABETES_MELLITUS_TYPE_NOT_SPECIFIED=='PRESENT',w2_cluster4_quali_combined_cohort[[8]],0))
-  
-  combined2_component_4_combined_cohort=data.frame(rowSums(weighted2_cluster4_vars_combined_cohort))
-  
-  w_cluster5_quali_combined_cohort=(factor_analysis5_train_combined_cohort$quali.var$coord[,1])/sqrt(factor_analysis5_train_combined_cohort$eig[1,1])
-  
-  weighted_cluster5_vars_combined_cohort=train_combined_cohort_X_ordered[,group_5]%>%
-    mutate(CHRONIC_CARDIAC_DISEASE_NOT_HYPERTENSION=ifelse(CHRONIC_CARDIAC_DISEASE_NOT_HYPERTENSION=='PRESENT',w_cluster5_quali_combined_cohort[[2]],0))%>%
-    mutate(HYPERTENSION=ifelse(HYPERTENSION=='PRESENT',w_cluster5_quali_combined_cohort[[4]],0))
-  
-  combined_component_5_combined_cohort=data.frame(rowSums(weighted_cluster5_vars_combined_cohort))
-  
-  w2_cluster5_quali_combined_cohort=(factor_analysis5_train_combined_cohort$quali.var$coord[,2])/sqrt(factor_analysis5_train_combined_cohort$eig[2,1])
-  
-  weighted2_cluster5_vars_combined_cohort=train_combined_cohort_X_ordered[,group_5]%>%
-    mutate(CHRONIC_CARDIAC_DISEASE_NOT_HYPERTENSION=ifelse(CHRONIC_CARDIAC_DISEASE_NOT_HYPERTENSION=='PRESENT',w2_cluster5_quali_combined_cohort[[2]],0))%>%
-    mutate(HYPERTENSION=ifelse(HYPERTENSION=='PRESENT',w2_cluster5_quali_combined_cohort[[4]],0))
-  
-  combined2_component_5_combined_cohort=data.frame(rowSums(weighted2_cluster5_vars_combined_cohort))
-  
-  #### cluster 6
-  ##### PC#1
-  w_cluster6_quali_combined_cohort=(factor_analysis6_train_combined_cohort$quali.var$coord[,1])/sqrt(factor_analysis6_train_combined_cohort$eig[1,1])
-  
-  weighted_cluster6_vars_combined_cohort=train_combined_cohort_X_ordered[,group_6]%>%
-    mutate(CHRONIC_KIDNEY_DISEASE=ifelse(CHRONIC_KIDNEY_DISEASE=='PRESENT',w_cluster6_quali_combined_cohort[[2]],0))%>%
-    mutate(MILD_LIVER_DISEASE=ifelse(MILD_LIVER_DISEASE=='PRESENT',w_cluster6_quali_combined_cohort[[4]],0))
-  
-  combined_component_6_combined_cohort=data.frame(rowSums(weighted_cluster6_vars_combined_cohort))
-  
-  w2_cluster6_quali_combined_cohort=(factor_analysis6_train_combined_cohort$quali.var$coord[,2])/sqrt(factor_analysis6_train_combined_cohort$eig[2,1])
-  
-  weighted2_cluster6_vars_combined_cohort=train_combined_cohort_X_ordered[,group_6]%>%
-    mutate(CHRONIC_KIDNEY_DISEASE=ifelse(CHRONIC_KIDNEY_DISEASE=='PRESENT',w2_cluster6_quali_combined_cohort[[2]],0))%>%
-    mutate(MILD_LIVER_DISEASE=ifelse(MILD_LIVER_DISEASE=='PRESENT',w2_cluster6_quali_combined_cohort[[4]],0))
-  
-  combined2_component_6_combined_cohort=data.frame(rowSums(weighted2_cluster6_vars_combined_cohort))
-  
-  w_cluster8_quali_combined_cohort=(factor_analysis8_train_combined_cohort$quali.var$coord[,1])/sqrt(factor_analysis8_train_combined_cohort$eig[1,1])
-  
-  weighted_cluster8_vars_combined_cohort=train_combined_cohort_X_ordered[,group_8]%>%
-    mutate(PSYCHOLOGICAL_DISORDER=ifelse(PSYCHOLOGICAL_DISORDER=='PRESENT',w_cluster8_quali_combined_cohort[[2]],0))%>%
-    mutate(CHRONIC_NEUROLOGICAL_DISORDER=ifelse(CHRONIC_NEUROLOGICAL_DISORDER=='PRESENT',w_cluster8_quali_combined_cohort[[4]],0))
-  combined_component_8_combined_cohort=data.frame(rowSums(weighted_cluster8_vars_combined_cohort))
-  
-  w2_cluster8_quali_combined_cohort=(factor_analysis8_train_combined_cohort$quali.var$coord[,2])/sqrt(factor_analysis8_train_combined_cohort$eig[2,1])
-  
-  weighted2_cluster8_vars_combined_cohort=train_combined_cohort_X_ordered[,group_8]%>%
-    mutate(PSYCHOLOGICAL_DISORDER=ifelse(PSYCHOLOGICAL_DISORDER=='PRESENT',w2_cluster8_quali_combined_cohort[[2]],0))%>%
-    mutate(CHRONIC_NEUROLOGICAL_DISORDER=ifelse(CHRONIC_NEUROLOGICAL_DISORDER=='PRESENT',w2_cluster8_quali_combined_cohort[[4]],0))
-  combined2_component_8_combined_cohort=data.frame(rowSums(weighted2_cluster8_vars_combined_cohort))
-  
-  all_components_df_train_combined_cohort=cbind.data.frame(cluster1=train_combined_cohort_X_ordered$AGE,
-                                                           cluster2_PC1=unname(combined_component_2_combined_cohort),
-                                                           cluster2_PC2=unname(combined2_component_2_combined_cohort),
-                                                           cluster3_PC1=unname(combined_component_3_combined_cohort),
-                                                           cluster3_PC2=unname(combined2_component_3_combined_cohort),
-                                                           cluster4_PC1=unname(combined_component_4_combined_cohort),
-                                                           cluster4_PC2=unname(combined2_component_4_combined_cohort),
-                                                           cluster5_PC1=unname(combined_component_5_combined_cohort),
-                                                           cluster5_PC2=unname(combined2_component_5_combined_cohort),
-                                                           cluster6_PC1=unname(combined_component_6_combined_cohort),                                              
-                                                           cluster6_PC2=unname(combined2_component_6_combined_cohort),
-                                                           cluster7=train_combined_cohort_X_ordered$RHEMUATOLOGICAL_DISORDER,
-                                                           cluster8_PC1=unname(combined_component_8_combined_cohort),
-                                                           cluster8_PC2=unname(combined2_component_8_combined_cohort),
-                                                           cluster_9=train_combined_cohort_X_ordered$MALIGNANT_NEOPLASM,
-                                                           cluster_10=train_combined_cohort_X_ordered$OTHER,
-                                                           cluster_11=train_combined_cohort_X_ordered$COUNTRY,
-                                                           cluster_12=train_combined_cohort_X_ordered$severity_indicator,
-                                                           QALD_final_weighted=dataset_train_combined_cohort_y[[1]])
-  
-  
-  RF2_train_combined_cohort=randomForest(QALD_final_weighted~.,data=all_components_df_train_combined_cohort,importance=TRUE)
-  store_RF2_results_combined_cohort=rbind.data.frame(store_RF2_results_combined_cohort,
-                                                     cbind.data.frame(variable=rownames(RF2_train_combined_cohort$importance),
-                                                                      inc_MSE=as.data.frame(RF2_train_combined_cohort$importance)[,1],
-                                                                      run=rep(i,ncol(all_components_df_train_combined_cohort)-1)))
-  
-}
-
-store_RF2_results_combined_cohort_summarized=store_RF2_results_combined_cohort%>%
-  group_by(variable)%>%
-  summarise(mean_inc_MSE=mean(inc_MSE))
-
-ggplot(store_RF2_results_combined_cohort_summarized,aes(x=reorder(variable,mean_inc_MSE),y=mean_inc_MSE,fill=variable))+
-  geom_col(show.legend=FALSE)+coord_flip()+theme_classic()+ylab("% increase in MSE (averaged over runs)")+xlab("variable")
-
-ggsave("./figures/prediction/RF_cluster_variable_importance_combined_cohort.pdf")
-
-## MODEl-GROUPED RF (RF #3) ##
-
-list_selected_groups_combined_cohort=c()
-list_selected_vars_combined_cohort=c()
-
-#### MUST RUN ON CLUSTER ####
-
-covvsurf_combined_cohort <- function(data){
-  for (i in 1:50){
-    train_split_indices_combined_cohort=createDataPartition(data$QALD_final_weighted,p=0.8,list=FALSE)
-    dataset_train_combined_cohort=data[train_split_indices_combined_cohort,]
-    
-    dataset_train_combined_cohort_x=dataset_train_combined_cohort%>%
-      select(-QALD_final_weighted)
-    
-    dataset_train_combined_cohort_y=dataset_train_combined_cohort%>%
-      select(QALD_final_weighted)
-    
-    dataset_train_combined_cohort_y=as.vector(dataset_train_combined_cohort_y$QALD_final_weighted)
-    
-    kval_combined_cohort <- 2:(ncol(dataset_train_combined_cohort_x)-1)
-    
-    set.seed(123)
-    clustered_RF_combined_cohort_train=covsurf(dataset_train_combined_cohort_x, 
-                                               dataset_train_combined_cohort_y, 
-                                               kval_combined_cohort)
-    list_selected_groups_combined_cohort=c(list_selected_groups_combined_cohort,clustered_RF_combined_cohort_train$vsel)
-    list_selected_vars_combined_cohort=c(list_selected_vars_combined_cohort,names(clustered_RF_combined_cohort_train$ptree$cluster[which(clustered_RF_combined_cohort_train$ptree$cluster%in%clustered_RF_combined_cohort_train$vsel)]))
-  }
-  write.csv(list_selected_groups_combined_cohort,"list_selected_groups_combined_cohort.csv",row.names=F)
-  write.csv(list_selected_vars_combined_cohort,"list_selected_vars_combined_cohort.csv",row.names=F)
-  return(list(selected_groups=list_selected_groups_combined_cohort,
-              selected_vars=list_selected_vars_combined_cohort))
-}
-
+dataset_Russia=read.csv("./data/QALDs_full_dataset_Russia.csv")
 
 # NORWAY
 
@@ -1146,4 +821,319 @@ covvsurf_UK <- function(data){
               selected_vars=list_selected_vars_UK))
 }
 
+# RUSSIA
+
+dataset_Russia_binary_vars=dataset_Russia%>%
+  dplyr::select(-AGE,-SEX,-QALD_final_weighted,-employment_status,-employment_status_category,-severity_indicator)
+dataset_Russia_binary_vars[dataset_Russia_binary_vars==1]='PRESENT'
+dataset_Russia_binary_vars[dataset_Russia_binary_vars==0]='ABSENT'
+
+dataset_Russia_final=cbind.data.frame(dataset_Russia[,c("AGE","SEX","employment_status",
+                                                                          "employment_status_category","severity_indicator","QALD_final_weighted")],
+                                               dataset_Russia_binary_vars)%>%
+  mutate(employment_status=as.factor(employment_status))%>%
+  mutate(employment_status_category=as.factor(employment_status_category))
+
+## INDIVIDUAL RF ## 
+
+store_RF_results_Russia=as.data.frame(matrix(ncol=3,nrow=0))
+colnames(store_RF_results_Russia)=c("variable","inc_MSE","run")
+
+for (i in 1:100){
+  
+  train_split_indices_Russia=createDataPartition(dataset_Russia_final$QALD_final_weighted,p=0.8,list=FALSE)
+  dataset_train_Russia=dataset_Russia_final[train_split_indices_Russia,]
+  #https://stackoverflow.com/questions/31968623/how-to-check-whether-a-column-contains-only-identical-elements-in-r
+  dataset_train_Russia=dataset_train_Russia[,apply(dataset_train_Russia, 2, function(a) length(unique(a))>1)]
+  
+  RF_train_Russia=randomForest(QALD_final_weighted~.,data=dataset_train_Russia,importance=TRUE)
+  store_RF_results_Russia=rbind.data.frame(store_RF_results_Russia,
+                                                    cbind.data.frame(variable=rownames(RF_train_Russia$importance),
+                                                                     inc_MSE=as.data.frame(RF_train_Russia$importance)[,1],
+                                                                     run=rep(i,ncol(dataset_train_Russia)-1)))
+  
+}
+
+store_RF_results_Russia_summarized=store_RF_results_Russia%>%
+  group_by(variable)%>%
+  summarise(mean_inc_MSE=mean(inc_MSE))
+
+store_RF_results_Russia_summarized$variable<-c("AGE","ASTHMA",
+                                                        "CHRONIC CARDIAC DISEASE (NOT HYPERTENSION)",
+                                                        "CHRONIC HEMATOLOGICAL DISEASE",
+                                                        "CHRONIC KIDNEY DISEASE",
+                                                        "CHRONIC NEUROLOGICAL DISORDER",
+                                                        "CHRONIC PULMONARY DISEASE (NOT ASTHMA)",
+                                                        "DEMENTIA", "TYPE 2 DIABETES",
+                                                        "DIABETES (TYPE NOT SPECIFIED)", 
+                                                        "HIV", "HYPERTENSION",
+                                                        "MALIGNANT NEOPLASM", 
+                                                         "MILD LIVER DISEASE",
+                                                        "OBESITY", "OTHER",
+                                                        "RHEUMATOLOGICAL DISORDER",
+                                                        "SEX", "SMOKING", 
+                                                        "EMPLOYMENT STATUS", "EMPLOYMENT STATUS CATEGORY","SEVERITY INDICATOR")
+
+
+ggplot(store_RF_results_Russia_summarized,aes(x=reorder(variable,mean_inc_MSE),y=mean_inc_MSE,fill=variable))+
+  geom_col(show.legend=FALSE)+coord_flip()+theme_classic()+ylab("% increase in MSE (averaged over runs)")+xlab("variable")
+
+ggsave("./figures/prediction/RF_individual_variable_importance_Russia.png")
+
+## PRE-GROUPED RF ## 
+
+store_RF2_results_Russia=as.data.frame(matrix(ncol=3,nrow=0))
+colnames(store_RF2_results_Russia)=c("variable","inc_MSE","run")
+
+## run across 100 trees
+for (i in 1:100){
+  
+  train_split_indices_Russia=createDataPartition(dataset_Russia_final$QALD_final_weighted,p=0.8,list=FALSE)
+  dataset_train_Russia=dataset_Russia_final[train_split_indices_Russia,]
+  
+  dataset_train_Russia_x=dataset_train_Russia%>%
+    dplyr::select(-QALD_final_weighted)
+  
+  dataset_train_Russia_y=dataset_train_Russia%>%
+    dplyr::select(QALD_final_weighted)
+  
+  train_Russia=c()
+  train_Russia$X=dataset_train_Russia_x
+  train_Russia$y=as.matrix(dataset_train_Russia_y)
+  
+  group_1="AGE"
+  group_2=c("employment_status","SEX")
+  group_3=c("ASTHMA","CHRONIC_PULMONARY_DISEASE_NOT_ASTHMA",
+            "SMOKING")
+  group_4=c("OBESITY",
+            "DIABETES_MELLITUS_TYPE_2","DIABETES_MELLITUS_TYPE_NOT_SPECIFIED")
+  group_5=c("CHRONIC_CARDIAC_DISEASE_NOT_HYPERTENSION",
+            "HYPERTENSION")
+  group_6=c("CHRONIC_KIDNEY_DISEASE","MILD_LIVER_DISEASE")
+  group_7="RHEUMATOLOGICAL_DISORDER"
+  group_8=c("DEMENTIA","CHRONIC_NEUROLOGICAL_DISORDER")
+  group_9="MALIGNANT_NEOPLASM"
+  group_10="OTHER"
+  group_11="severity_indicator"
+  
+  train_Russia_X_ordered=cbind.data.frame(AGE=train_Russia$X[,group_1],
+                                                   train_Russia$X[,group_2],
+                                                   train_Russia$X[,group_3],
+                                                   train_Russia$X[,group_4],
+                                                   train_Russia$X[,group_5],
+                                                   train_Russia$X[,group_6],
+                                                   RHEMUATOLOGICAL_DISORDER=train_Russia$X[,group_7],
+                                                   train_Russia$X[,group_8],
+                                                   MALIGNANT_NEOPLASM=train_Russia$X[,group_9],
+                                                   OTHER=train_Russia$X[,group_10],
+                                                   severity_indicator=train_Russia$X[,group_11])
+  
+  factor_analysis2_train_Russia=FAMD(train_Russia_X_ordered[,group_2],graph=FALSE)
+  factor_analysis3_train_Russia=FAMD(train_Russia_X_ordered[,group_3],graph=FALSE)
+  factor_analysis4_train_Russia=FAMD(train_Russia_X_ordered[,group_4],graph=FALSE)
+  factor_analysis5_train_Russia=FAMD(train_Russia_X_ordered[,group_5],graph=FALSE)
+  factor_analysis6_train_Russia=FAMD(train_Russia_X_ordered[,group_6],graph=FALSE)
+  factor_analysis8_train_Russia=FAMD(train_Russia_X_ordered[,group_8],graph=FALSE)
+  
+  w_cluster2_quali_Russia=(factor_analysis2_train_Russia$quali.var$coord[,1])/sqrt(factor_analysis2_train_Russia$eig[1,1])
+  
+  weighted_cluster2_vars_Russia=train_Russia_X_ordered[,group_2]%>%
+    mutate(employment_status=ifelse(employment_status=='Early Retirement Due to Illness',
+                                    w_cluster2_quali_Russia[["Early Retirement Due to Illness"]],
+                            ifelse(employment_status=='Full Time Carer (Children or Others)',
+                                    w_cluster2_quali_Russia[["Full Time Carer (Children or Others)"]],
+                                           ifelse(employment_status=='Retired',
+                                                  w_cluster2_quali_Russia[["Retired"]],
+                                                  ifelse(employment_status=='Student',
+                                                         w_cluster2_quali_Russia[["Student"]],             
+                                                         ifelse(employment_status=='Unable to Work due to Chronic Illness',
+                                                                w_cluster2_quali_Russia[["Unable to Work due to Chronic Illness"]],
+                                                                ifelse(employment_status=='Unemployed',
+                                                                       w_cluster2_quali_Russia[["Unemployed"]],
+                                                                       ifelse(employment_status=='Working Full-Time',
+                                                                              w_cluster2_quali_Russia[["Working Full-Time"]],
+                                                                              w_cluster2_quali_Russia[["Working Part-Time"]]))))))))%>%
+    mutate(SEX=ifelse(SEX=='F',w_cluster2_quali_Russia[["F"]],
+                      w_cluster2_quali_Russia[["M"]]))
+  
+  combined_component_2_Russia=data.frame(rowSums(weighted_cluster2_vars_Russia))
+  
+  w2_cluster2_quali_Russia=(factor_analysis2_train_Russia$quali.var$coord[,2])/sqrt(factor_analysis2_train_Russia$eig[2,1])
+  
+  weighted2_cluster2_vars_Russia=train_Russia_X_ordered[,group_2]%>%
+    mutate(employment_status=ifelse(employment_status=='Early Retirement Due to Illness',
+                                    w2_cluster2_quali_Russia[["Early Retirement Due to Illness"]],
+                                    ifelse(employment_status=='Full Time Carer (Children or Others)',
+                                           w2_cluster2_quali_Russia[["Full Time Carer (Children or Others)"]],
+                                           ifelse(employment_status=='Retired',
+                                                  w2_cluster2_quali_Russia[["Retired"]],
+                                                  ifelse(employment_status=='Student',
+                                                         w2_cluster2_quali_Russia[["Student"]],             
+                                                         ifelse(employment_status=='Unable to Work due to Chronic Illness',
+                                                                w2_cluster2_quali_Russia[["Unable to Work due to Chronic Illness"]],
+                                                                ifelse(employment_status=='Unemployed',
+                                                                       w2_cluster2_quali_Russia[["Unemployed"]],
+                                                                       ifelse(employment_status=='Working Full-Time',
+                                                                              w2_cluster2_quali_Russia[["Working Full-Time"]],
+                                                                              w2_cluster2_quali_Russia[["Working Part-Time"]]))))))))%>%
+    mutate(SEX=ifelse(SEX=='F',w2_cluster2_quali_Russia[["F"]],
+                      w2_cluster2_quali_Russia[["M"]]))
+  
+  combined2_component_2_Russia=data.frame(rowSums(weighted2_cluster2_vars_Russia))
+  
+  w_cluster3_quali_Russia=(factor_analysis3_train_Russia$quali.var$coord[,1])/sqrt(factor_analysis3_train_Russia$eig[1,1])
+  
+  weighted_cluster3_vars_Russia=train_Russia_X_ordered[,group_3]%>%
+    mutate(ASTHMA=ifelse(ASTHMA=='PRESENT',w_cluster3_quali_Russia[[2]],0))%>%
+    mutate(CHRONIC_PULMONARY_DISEASE_NOT_ASTHMA=ifelse(CHRONIC_PULMONARY_DISEASE_NOT_ASTHMA=='PRESENT',w_cluster3_quali_Russia[[4]],0))%>%
+    mutate(SMOKING=ifelse(SMOKING=='PRESENT',w_cluster3_quali_Russia[[6]],0))
+  
+  combined_component_3_Russia=data.frame(rowSums(weighted_cluster3_vars_Russia))
+  
+  w2_cluster3_quali_Russia=(factor_analysis3_train_Russia$quali.var$coord[,2])/sqrt(factor_analysis3_train_Russia$eig[2,1])
+  
+  weighted2_cluster3_vars_Russia=train_Russia_X_ordered[,group_3]%>%
+    mutate(ASTHMA=ifelse(ASTHMA=='PRESENT',w2_cluster3_quali_Russia[[2]],0))%>%
+    mutate(CHRONIC_PULMONARY_DISEASE_NOT_ASTHMA=ifelse(CHRONIC_PULMONARY_DISEASE_NOT_ASTHMA=='PRESENT',w2_cluster3_quali_Russia[[4]],0))%>%
+    mutate(SMOKING=ifelse(SMOKING=='PRESENT',w2_cluster3_quali_Russia[[6]],0))
+  
+  combined2_component_3_Russia=data.frame(rowSums(weighted2_cluster3_vars_Russia))
+  
+  w_cluster4_quali_Russia=(factor_analysis4_train_Russia$quali.var$coord[,1])/sqrt(factor_analysis4_train_Russia$eig[1,1])
+  
+  weighted_cluster4_vars_Russia=train_Russia_X_ordered[,group_4]%>%
+    mutate(OBESITY=ifelse(OBESITY=='PRESENT',w_cluster4_quali_Russia[[2]],0))%>%
+    mutate(DIABETES_MELLITUS_TYPE_2=ifelse(DIABETES_MELLITUS_TYPE_2=='PRESENT',w_cluster4_quali_Russia[[4]],0))%>%
+    mutate(DIABETES_MELLITUS_TYPE_NOT_SPECIFIED=ifelse(DIABETES_MELLITUS_TYPE_NOT_SPECIFIED=='PRESENT',w_cluster4_quali_Russia[[6]],0))
+  
+  combined_component_4_Russia=data.frame(rowSums(weighted_cluster4_vars_Russia))
+  
+  w2_cluster4_quali_Russia=(factor_analysis4_train_Russia$quali.var$coord[,2])/sqrt(factor_analysis4_train_Russia$eig[2,1])
+  
+  weighted2_cluster4_vars_Russia=train_Russia_X_ordered[,group_4]%>%
+    mutate(OBESITY=ifelse(OBESITY=='PRESENT',w2_cluster4_quali_Russia[[2]],0))%>%
+    mutate(DIABETES_MELLITUS_TYPE_2=ifelse(DIABETES_MELLITUS_TYPE_2=='PRESENT',w2_cluster4_quali_Russia[[4]],0))%>%
+    mutate(DIABETES_MELLITUS_TYPE_NOT_SPECIFIED=ifelse(DIABETES_MELLITUS_TYPE_NOT_SPECIFIED=='PRESENT',w2_cluster4_quali_Russia[[6]],0))
+  
+  combined2_component_4_Russia=data.frame(rowSums(weighted2_cluster4_vars_Russia))
+  
+  w_cluster5_quali_Russia=(factor_analysis5_train_Russia$quali.var$coord[,1])/sqrt(factor_analysis5_train_Russia$eig[1,1])
+  
+  weighted_cluster5_vars_Russia=train_Russia_X_ordered[,group_5]%>%
+    mutate(CHRONIC_CARDIAC_DISEASE_NOT_HYPERTENSION=ifelse(CHRONIC_CARDIAC_DISEASE_NOT_HYPERTENSION=='PRESENT',w_cluster5_quali_Russia[[2]],0))%>%
+    mutate(HYPERTENSION=ifelse(HYPERTENSION=='PRESENT',w_cluster5_quali_Russia[[4]],0))
+  
+  combined_component_5_Russia=data.frame(rowSums(weighted_cluster5_vars_Russia))
+  
+  w2_cluster5_quali_Russia=(factor_analysis5_train_Russia$quali.var$coord[,2])/sqrt(factor_analysis5_train_Russia$eig[2,1])
+  
+  weighted2_cluster5_vars_Russia=train_Russia_X_ordered[,group_5]%>%
+    mutate(CHRONIC_CARDIAC_DISEASE_NOT_HYPERTENSION=ifelse(CHRONIC_CARDIAC_DISEASE_NOT_HYPERTENSION=='PRESENT',w2_cluster5_quali_Russia[[2]],0))%>%
+    mutate(HYPERTENSION=ifelse(HYPERTENSION=='PRESENT',w2_cluster5_quali_Russia[[4]],0))
+  
+  combined2_component_5_Russia=data.frame(rowSums(weighted2_cluster5_vars_Russia))
+  
+  #### cluster 6
+  ##### PC#1
+  w_cluster6_quali_Russia=(factor_analysis6_train_Russia$quali.var$coord[,1])/sqrt(factor_analysis6_train_Russia$eig[1,1])
+  
+  weighted_cluster6_vars_Russia=train_Russia_X_ordered[,group_6]%>%
+    mutate(CHRONIC_KIDNEY_DISEASE=ifelse(CHRONIC_KIDNEY_DISEASE=='PRESENT',w_cluster6_quali_Russia[[2]],0))%>%
+    mutate(MILD_LIVER_DISEASE=ifelse(MILD_LIVER_DISEASE=='PRESENT',w_cluster6_quali_Russia[[4]],0))
+  
+  combined_component_6_Russia=data.frame(rowSums(weighted_cluster6_vars_Russia))
+  
+  w2_cluster6_quali_Russia=(factor_analysis6_train_Russia$quali.var$coord[,2])/sqrt(factor_analysis6_train_Russia$eig[2,1])
+  
+  weighted2_cluster6_vars_Russia=train_Russia_X_ordered[,group_6]%>%
+    mutate(CHRONIC_KIDNEY_DISEASE=ifelse(CHRONIC_KIDNEY_DISEASE=='PRESENT',w2_cluster6_quali_Russia[[2]],0))%>%
+    mutate(MILD_LIVER_DISEASE=ifelse(MILD_LIVER_DISEASE=='PRESENT',w2_cluster6_quali_Russia[[4]],0))
+  
+  combined2_component_6_Russia=data.frame(rowSums(weighted2_cluster6_vars_Russia))
+  
+  w_cluster8_quali_Russia=(factor_analysis8_train_Russia$quali.var$coord[,1])/sqrt(factor_analysis8_train_Russia$eig[1,1])
+  
+  weighted_cluster8_vars_Russia=train_Russia_X_ordered[,group_8]%>%
+    mutate(DEMENTIA=ifelse(DEMENTIA=='PRESENT',w_cluster8_quali_Russia[[2]],0))%>%
+    mutate(CHRONIC_NEUROLOGICAL_DISORDER=ifelse(CHRONIC_NEUROLOGICAL_DISORDER=='PRESENT',w_cluster8_quali_Russia[[4]],0))
+  combined_component_8_Russia=data.frame(rowSums(weighted_cluster8_vars_Russia))
+  
+  w2_cluster8_quali_Russia=(factor_analysis8_train_Russia$quali.var$coord[,2])/sqrt(factor_analysis8_train_Russia$eig[2,1])
+  
+  weighted2_cluster8_vars_Russia=train_Russia_X_ordered[,group_8]%>%
+    mutate(DEMENTIA=ifelse(DEMENTIA=='PRESENT',w2_cluster8_quali_Russia[[2]],0))%>%
+    mutate(CHRONIC_NEUROLOGICAL_DISORDER=ifelse(CHRONIC_NEUROLOGICAL_DISORDER=='PRESENT',w2_cluster8_quali_Russia[[4]],0))
+  combined2_component_8_Russia=data.frame(rowSums(weighted2_cluster8_vars_Russia))
+  
+  all_components_df_train_Russia=cbind.data.frame(cluster1=train_Russia_X_ordered$AGE,
+                                                           cluster2_PC1=unname(combined_component_2_Russia),
+                                                           cluster2_PC2=unname(combined2_component_2_Russia),
+                                                           cluster3_PC1=unname(combined_component_3_Russia),
+                                                           cluster3_PC2=unname(combined2_component_3_Russia),
+                                                           cluster4_PC1=unname(combined_component_4_Russia),
+                                                           cluster4_PC2=unname(combined2_component_4_Russia),
+                                                           cluster5_PC1=unname(combined_component_5_Russia),
+                                                           cluster5_PC2=unname(combined2_component_5_Russia),
+                                                           cluster6_PC1=unname(combined_component_6_Russia),                                              
+                                                           cluster6_PC2=unname(combined2_component_6_Russia),
+                                                           cluster7=train_Russia_X_ordered$RHEMUATOLOGICAL_DISORDER,
+                                                           cluster8_PC1=unname(combined_component_8_Russia),
+                                                           cluster8_PC2=unname(combined2_component_8_Russia),
+                                                           cluster_9=train_Russia_X_ordered$MALIGNANT_NEOPLASM,
+                                                           cluster_10=train_Russia_X_ordered$OTHER,
+                                                           cluster_11=train_Russia_X_ordered$severity_indicator,
+                                                           QALD_final_weighted=dataset_train_Russia_y[[1]])
+  
+  
+  RF2_train_Russia=randomForest(QALD_final_weighted~.,data=all_components_df_train_Russia,importance=TRUE)
+  store_RF2_results_Russia=rbind.data.frame(store_RF2_results_Russia,
+                                                     cbind.data.frame(variable=rownames(RF2_train_Russia$importance),
+                                                                      inc_MSE=as.data.frame(RF2_train_Russia$importance)[,1],
+                                                                      run=rep(i,ncol(all_components_df_train_Russia)-1)))
+  
+}
+
+store_RF2_results_Russia_summarized=store_RF2_results_Russia%>%
+  group_by(variable)%>%
+  summarise(mean_inc_MSE=mean(inc_MSE))
+
+ggplot(store_RF2_results_Russia_summarized,aes(x=reorder(variable,mean_inc_MSE),y=mean_inc_MSE,fill=variable))+
+  geom_col(show.legend=FALSE)+coord_flip()+theme_classic()+ylab("% increase in MSE (averaged over runs)")+xlab("variable")
+
+ggsave("./figures/prediction/RF_cluster_variable_importance_Russia.png")
+
+## MODEl-GROUPED RF (RF #3) ##
+
+list_selected_groups_Russia=c()
+list_selected_vars_Russia=c()
+
+#### MUST RUN ON CLUSTER ####
+
+covvsurf_Russia <- function(data){
+  for (i in 1:50){
+    train_split_indices_Russia=createDataPartition(data$QALD_final_weighted,p=0.8,list=FALSE)
+    dataset_train_Russia=data[train_split_indices_Russia,]
+    
+    dataset_train_Russia_x=dataset_train_Russia%>%
+      select(-QALD_final_weighted)
+    
+    dataset_train_Russia_y=dataset_train_Russia%>%
+      select(QALD_final_weighted)
+    
+    dataset_train_Russia_y=as.vector(dataset_train_Russia_y$QALD_final_weighted)
+    
+    kval_Russia <- 2:(ncol(dataset_train_Russia_x)-1)
+    
+    set.seed(123)
+    clustered_RF_Russia_train=covsurf(dataset_train_Russia_x, 
+                                               dataset_train_Russia_y, 
+                                               kval_Russia)
+    list_selected_groups_Russia=c(list_selected_groups_Russia,clustered_RF_Russia_train$vsel)
+    list_selected_vars_Russia=c(list_selected_vars_Russia,names(clustered_RF_Russia_train$ptree$cluster[which(clustered_RF_Russia_train$ptree$cluster%in%clustered_RF_Russia_train$vsel)]))
+  }
+  write.csv(list_selected_groups_Russia,"list_selected_groups_Russia.csv",row.names=F)
+  write.csv(list_selected_vars_Russia,"list_selected_vars_Russia.csv",row.names=F)
+  return(list(selected_groups=list_selected_groups_Russia,
+              selected_vars=list_selected_vars_Russia))
+}
 
