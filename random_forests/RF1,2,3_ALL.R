@@ -769,14 +769,6 @@ ggsave("./figures/prediction/RF_cluster_variable_importance_UK.pdf")
 
 ## MODEl-GROUPED RF (RF #3) ##
 
-dataset_UK=read.csv("./data/QALDs_full_dataset_UK.csv")%>%
-  mutate(SEX=as.factor(SEX))
-
-dataset_UK_binary_vars=dataset_UK%>%
-  dplyr::select(-AGE,-SEX,-QALD_final_weighted,-employment_status,-employment_status_category,-is_treated_antiviral,-severity_indicator)
-dataset_UK_binary_vars[dataset_UK_binary_vars==1]='PRESENT'
-dataset_UK_binary_vars[dataset_UK_binary_vars==0]='ABSENT'
-
 dataset_UK_final=cbind.data.frame(dataset_UK[,c("AGE","SEX","employment_status",
                                                 "employment_status_category",
                                                 "QALD_final_weighted","is_treated_antiviral","severity_indicator")],
@@ -784,9 +776,7 @@ dataset_UK_final=cbind.data.frame(dataset_UK[,c("AGE","SEX","employment_status",
   mutate(employment_status=as.factor(employment_status))%>%
   mutate(employment_status_category=as.factor(employment_status_category))
 
-
-### REF: https://robingenuer.github.io/CoVVSURF/
-
+### Run CoV-VSURF
 #### MUST RUN ON CLUSTER ####
 
 list_selected_groups_UK=c()
@@ -1104,10 +1094,17 @@ ggsave("./figures/prediction/RF_cluster_variable_importance_Russia.png")
 
 ## MODEl-GROUPED RF (RF #3) ##
 
+dataset_Russia_final=cbind.data.frame(dataset_Russia[,c("AGE","SEX","employment_status",
+                                                                          "employment_status_category","severity_indicator","QALD_final_weighted")],
+                                               dataset_Russia_binary_vars)%>%
+  mutate(employment_status=as.factor(employment_status))%>%
+  mutate(employment_status_category=as.factor(employment_status_category))
+
+### Run CoV-VSURF
+#### MUST RUN ON CLUSTER ####
+
 list_selected_groups_Russia=c()
 list_selected_vars_Russia=c()
-
-#### MUST RUN ON CLUSTER ####
 
 covvsurf_Russia <- function(data){
   for (i in 1:50){
