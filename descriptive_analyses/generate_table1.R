@@ -2,50 +2,9 @@ library(tidyverse)
 library(table1)
 library(table1)
 
-data_combined_cohort=read.csv("./data/QALDs_full_dataset_combined_cohort.csv")
 data_Norway=read.csv("./data/QALDs_full_dataset_Norway.csv")
 data_UK=read.csv("./data/QALDs_full_dataset_UK.csv")
-
-# COMBINED MIC COHORT
-data_combined_cohort_binary_vars=data_combined_cohort%>%
-  dplyr::select(-QALD_final_weighted,-AGE,-SEX,-employment_status,
-                -employment_status_category,-COUNTRY,-severity_indicator)
-
-sort(colMeans(data_combined_cohort_binary_vars)) # proportions of each comorbidity 
-
-data_combined_cohort_binary_vars[data_combined_cohort_binary_vars==1]='PRESENT'
-data_combined_cohort_binary_vars[data_combined_cohort_binary_vars==0]='ABSENT'
-
-data_combined_cohort_for_table=cbind.data.frame(data_combined_cohort_binary_vars,
-                                                data_combined_cohort[,c("QALD_final_weighted","AGE","SEX","COUNTRY")])%>%
-  mutate(SEX=ifelse(SEX=='F','Female',ifelse(SEX=='M','Male','Unknown')))
-
-common_vars_ALL=intersect(intersect(colnames(data_Norway_for_table),
-                                    colnames(data_UK_for_table)),
-                          colnames(data_combined_cohort_for_table))
-
-data_ALL_for_table=rbind.data.frame(cbind.data.frame(data_Norway_for_table[,common_vars_ALL],
-                                                     country=rep('Norway',nrow(data_Norway_for_table))),
-                                    cbind.data.frame(data_UK_for_table[,common_vars_ALL],
-                                                     country=rep('UK',nrow(data_UK_for_table))))
-data_ALL_for_table=rbind.data.frame(data_ALL_for_table, 
-                                    cbind.data.frame(data_combined_cohort_for_table[,common_vars_ALL],
-                                                     country=rep('Combined MIC cohort',nrow(data_combined_cohort_for_table))))
-
-colnames(data_ALL_for_table)[1:20]=c("ASTHMA",
-                                     "CHRONIC CARDIAC DISEASE (NOT HYPERTENSION)",
-                                     "CHRONIC HAEMATOLOGICAL DISEASE",
-                                     "CHRONIC KIDNEY DISEASE","CHRONIC NEUROLOGICAL DISORDER",
-                                     "CHRONIC PULMONARY DISEASE (NOT ASTHMA)",
-                                     "DIABETES MELLITUS (TYPE 1)",
-                                     "DIABETES MELLITUS (TYPE 2)",
-                                     "DIABETES MELLITUS (TYPE NOT SPECIFIED)",
-                                     "HYPERTENSION",
-                                     "MALIGNANT NEOPLASM","PSYCHOLOGICAL DISORDER",
-                                     "OBESITY","OTHER","RHEUMATOLOGICAL DISORDER",
-                                     "SMOKING","Long COVID QALDs",
-                                     "AGE","SEX",
-                                     "country")
+data_Russia=read.csv("./data/QALDs_full_dataset_Russia.csv")
 
 # NORWAY
 
@@ -84,14 +43,54 @@ data_UK_for_table=cbind.data.frame(data_UK_binary_vars,
                                        data_UK[,c("QALD_final_weighted","AGE","SEX")])%>%
   mutate(SEX=ifelse(SEX=='F','Female',ifelse(SEX=='M','Male','Unknown')))
 
+# Russia
+data_Russia_binary_vars=data_Russia%>%
+  dplyr::select(-QALD_final_weighted,-AGE,-SEX,-employment_status,
+                -employment_status_category,-severity_indicator)
+
+sort(colMeans(data_Russia_binary_vars)) # proportions of each comorbidity 
+
+data_Russia_binary_vars[data_Russia_binary_vars==1]='PRESENT'
+data_Russia_binary_vars[data_Russia_binary_vars==0]='ABSENT'
+
+data_Russia_for_table=cbind.data.frame(data_Russia_binary_vars,
+                                       data_Russia[,c("QALD_final_weighted","AGE","SEX")])%>%
+  mutate(SEX=ifelse(SEX=='F','Female',ifelse(SEX=='M','Male','Unknown')))
+
+# combine tables
+common_vars_ALL=intersect(intersect(colnames(data_Norway_for_table),
+                                    colnames(data_UK_for_table)),
+                          colnames(data_Russia_for_table))
+
+data_ALL_for_table=rbind.data.frame(cbind.data.frame(data_Norway_for_table[,common_vars_ALL],
+                                                     country=rep('Norway',nrow(data_Norway_for_table))),
+                                    cbind.data.frame(data_UK_for_table[,common_vars_ALL],
+                                                     country=rep('UK',nrow(data_UK_for_table))))
+data_ALL_for_table=rbind.data.frame(data_ALL_for_table, 
+                                    cbind.data.frame(data_Russia_for_table[,common_vars_ALL],
+                                                     country=rep('Russia',nrow(data_Russia_for_table))))
+
+colnames(data_ALL_for_table)[1:18]=c("ASTHMA",
+                                     "CHRONIC CARDIAC DISEASE (NOT HYPERTENSION)",
+                                     "CHRONIC HAEMATOLOGICAL DISEASE",
+                                     "CHRONIC KIDNEY DISEASE","CHRONIC NEUROLOGICAL DISORDER",
+                                     "CHRONIC PULMONARY DISEASE (NOT ASTHMA)",
+                                     "DIABETES MELLITUS (TYPE 2)",
+                                     "DIABETES MELLITUS (TYPE NOT SPECIFIED)",
+                                     "HYPERTENSION",
+                                     "MALIGNANT NEOPLASM",
+                                     "OBESITY","OTHER","RHEUMATOLOGICAL DISORDER",
+                                     "SMOKING","Long COVID QALDs",
+                                     "AGE","SEX",
+                                     "country")
+
 table1_all=table1 (~AGE+
           SEX+ASTHMA+`CHRONIC CARDIAC DISEASE (NOT HYPERTENSION)`+
           `CHRONIC HAEMATOLOGICAL DISEASE`+`CHRONIC KIDNEY DISEASE`+
           `CHRONIC NEUROLOGICAL DISORDER`+`CHRONIC PULMONARY DISEASE (NOT ASTHMA)`+
-          `DIABETES MELLITUS (TYPE 1)`+`DIABETES MELLITUS (TYPE 2)`+
+          `DIABETES MELLITUS (TYPE 2)`+
           `DIABETES MELLITUS (TYPE NOT SPECIFIED)`+HYPERTENSION+
           `MALIGNANT NEOPLASM`+
-          `PSYCHOLOGICAL DISORDER`+
           OBESITY+`RHEUMATOLOGICAL DISORDER`+
             SMOKING+`Long COVID QALDs`|country,data=data_ALL_for_table,
           topclass="Rtable1-zebra")
@@ -100,5 +99,5 @@ save(table1_all, file = "out.rda")
 
 IQR_QALDs_Norway=quantile(data_Norway_for_table$QALD_final_weighted, probs = c(0.25,0.75))
 IQR_QALDs_UK=quantile(data_UK_for_table$QALD_final_weighted, probs = c(0.25,0.75))
-IQR_QALDs_combined_cohort=quantile(data_combined_cohort_for_table$QALD_final_weighted, probs = c(0.25,0.75))
+IQR_QALDs_Russia=quantile(data_Russia_for_table$QALD_final_weighted, probs = c(0.25,0.75))
 
