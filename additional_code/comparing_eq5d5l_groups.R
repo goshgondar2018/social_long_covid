@@ -149,6 +149,3 @@ ggsave("./figures/compare_eq5d5l_responses_sex_Russia.png")
 
 
 
-
-ggsave("./figures/compare_eq5d5l_responses_sex_UK.png")
-
