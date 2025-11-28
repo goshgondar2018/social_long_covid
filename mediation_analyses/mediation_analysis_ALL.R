@@ -8,9 +8,15 @@ library(biglm)
 library(lightgbm)
 library(nnet)
 
-data_Norway=read.csv("./data/QALDs_full_dataset_Norway.csv")
-data_UK=read.csv("./data/QALDs_full_dataset_UK.csv")
-data_Russia=read.csv("./data/QALDs_full_dataset_Russia.csv")
+data_Norway=read.csv("./data/QALDs_full_dataset_Norway.csv")%>%
+  ## min-max normalization to scale QALDs to [0,1] range
+  mutate(QALD_normalized=(QALD - min(QALD)) / (max(QALD) - min(QALD)))
+data_UK=read.csv("./data/QALDs_full_dataset_UK.csv")%>%
+  ## min-max normalization to scale QALDs to [0,1] range
+  mutate(QALD_normalized=(QALD - min(QALD)) / (max(QALD) - min(QALD)))
+data_Russia=read.csv("./data/QALDs_full_dataset_Russia.csv")%>%
+  ## min-max normalization to scale QALDs to [0,1] range
+  mutate(QALD_normalized=(QALD - min(QALD)) / (max(QALD) - min(QALD)))
 
 # instantiate learners 
 ## # ref: https://code.nimahejazi.org/medoutcon/articles/intro_medoutcon.html
@@ -24,9 +30,9 @@ nnet_lrnr <- Lrnr_nnet$new(outcome_type='binomial')
 lrnr_lib <- Stack$new(mean_lrnr,gam_lrnr, boosted_lrnr,nnet_lrnr) 
 sl_lrnr <- Lrnr_sl$new(learners = lrnr_lib, metalearner=Lrnr_nnls$new())
 
-### for continuous variables
+### for outcome 
 mean_lrnr2 <- Lrnr_mean$new()
-gam_lrnr2 <- Lrnr_gam$new(family = gaussian())
+gam_lrnr2 <- Lrnr_gam$new(family = quasibinomial())
 boosted_lrnr2 <- Lrnr_lightgbm$new(force_row_wise=TRUE) 
 nnet_lrnr2 <- Lrnr_nnet$new(outcome_type='continuous')
 
@@ -73,7 +79,7 @@ tmle_de_educ_function_Norway <- function(data,educ_var) {
                                    "DIABETES_MELLITUS_TYPE_NOT_SPECIFIED",
                                    "MENTAL_DISORDER",
                                    "SMOKING","is_vaccinated")],
-                       Y = data$QALD_final_weighted,
+                       Y = data$QALD_normalized,
                        # for population correction sensitivity analysis, use the below svy_weights argument
                        # svy_weights = data$weight,
                        g_learners = sl_lrnr,
@@ -96,7 +102,7 @@ tmle_ie_educ_function_Norway <- function(data,educ_var) {
                                    "DIABETES_MELLITUS_TYPE_NOT_SPECIFIED",
                                    "MENTAL_DISORDER",
                                    "SMOKING","is_vaccinated")],
-                       Y = data$QALD_final_weighted,
+                       Y = data$QALD_normalized,
                        # for population correction sensitivity analysis, use the below svy_weights argument
                        # svy_weights = data$weight,
                        g_learners = sl_lrnr,
@@ -119,7 +125,7 @@ tmle_pm_educ_function_Norway <- function(data,educ_var) {
                                    "DIABETES_MELLITUS_TYPE_NOT_SPECIFIED",
                                    "MENTAL_DISORDER",
                                    "SMOKING","is_vaccinated")],
-                       Y = data$QALD_final_weighted,
+                       Y = data$QALD_normalized,
                        # for population correction sensitivity analysis, use the below svy_weights argument
                        # svy_weights = data$weight,
                        g_learners = sl_lrnr,
@@ -144,7 +150,7 @@ tmle_de_sex_function_Norway <- function(data) {
                                    "DIABETES_MELLITUS_TYPE_NOT_SPECIFIED",
                                    "MENTAL_DISORDER",
                                    "SMOKING","is_vaccinated")],
-                       Y = data$QALD_final_weighted,
+                       Y = data$QALD_normalized,
                        # for population correction sensitivity analysis, use the below svy_weights argument
                        # svy_weights = data$weight,
                        g_learners = sl_lrnr,
@@ -167,7 +173,7 @@ tmle_ie_sex_function_Norway <- function(data) {
                                    "DIABETES_MELLITUS_TYPE_NOT_SPECIFIED",
                                    "MENTAL_DISORDER",
                                    "SMOKING","is_vaccinated")],
-                       Y = data$QALD_final_weighted,
+                       Y = data$QALD_normalized,
                        # for population correction sensitivity analysis, use the below svy_weights argument
                        # svy_weights = data$weight,
                        g_learners = sl_lrnr,
@@ -190,7 +196,7 @@ tmle_pm_sex_function_Norway <- function(data) {
                                    "DIABETES_MELLITUS_TYPE_NOT_SPECIFIED",
                                    "MENTAL_DISORDER",
                                    "SMOKING","is_vaccinated")],
-                       Y = data$QALD_final_weighted,
+                       Y = data$QALD_normalized,
                        # for population correction sensitivity analysis, use the below svy_weights argument
                        # svy_weights = data$weight,
                        g_learners = sl_lrnr,
@@ -270,7 +276,7 @@ tmle_de_emp_function_UK <- function(data) {
                                    "MENTAL_DISORDER",
                                    "ISCHAEMIC_HEART_DISEASE",
                                    "SMOKING","OBESITY","is_treated_antiviral")],
-                       Y = data$QALD_final_weighted,
+                       Y = data$QALD_normalized,
                        # for population correction sensitivity analysis, use the below svy_weights argument
                        # svy_weights = data$weight,
                        g_learners = sl_lrnr,
@@ -293,7 +299,7 @@ tmle_ie_emp_function_UK <- function(data) {
                                    "MENTAL_DISORDER",
                                    "ISCHAEMIC_HEART_DISEASE",
                                    "SMOKING","OBESITY","is_treated_antiviral")],
-                       Y = data$QALD_final_weighted,
+                       Y = data$QALD_normalized,
                        # for population correction sensitivity analysis, use the below svy_weights argument
                        # svy_weights = data$weight,
                        g_learners = sl_lrnr,
@@ -316,7 +322,7 @@ tmle_pm_emp_function_UK <- function(data) {
                                    "MENTAL_DISORDER",
                                    "ISCHAEMIC_HEART_DISEASE",
                                    "SMOKING","OBESITY","is_treated_antiviral")],
-                       Y = data$QALD_final_weighted,
+                       Y = data$QALD_normalized,
                        # for population correction sensitivity analysis, use the below svy_weights argument
                        # svy_weights = data$weight,
                        g_learners = sl_lrnr,
@@ -341,7 +347,7 @@ tmle_de_sex_function_UK <- function(data) {
                                    "MENTAL_DISORDER",
                                    "ISCHAEMIC_HEART_DISEASE",
                                    "SMOKING","OBESITY","is_treated_antiviral")],
-                       Y = data$QALD_final_weighted,
+                       Y = data$QALD_normalized,
                        # for population correction sensitivity analysis, use the below svy_weights argument
                        # svy_weights = data$weight,
                        g_learners = sl_lrnr,
@@ -364,7 +370,7 @@ tmle_ie_sex_function_UK <- function(data) {
                                    "MENTAL_DISORDER",
                                    "ISCHAEMIC_HEART_DISEASE",
                                    "SMOKING","OBESITY","is_treated_antiviral")],
-                       Y = data$QALD_final_weighted,
+                       Y = data$QALD_normalized,
                        # for population correction sensitivity analysis, use the below svy_weights argument
                        # svy_weights = data$weight,
                        g_learners = sl_lrnr,
@@ -387,7 +393,7 @@ tmle_pm_sex_function_UK <- function(data) {
                                    "MENTAL_DISORDER",
                                    "ISCHAEMIC_HEART_DISEASE",
                                    "SMOKING","OBESITY","is_treated_antiviral")],
-                       Y = data$QALD_final_weighted,
+                       Y = data$QALD_normalized,
                        # for population correction sensitivity analysis, use the below svy_weights argument
                        # svy_weights = data$weight,
                        g_learners = sl_lrnr,
@@ -443,7 +449,7 @@ tmle_de_emp_function_Russia <- function(data) {
                                    "DIABETES_MELLITUS_TYPE_2",
                                    "DIABETES_MELLITUS_TYPE_NOT_SPECIFIED",
                                    "SMOKING","OBESITY")],
-                       Y = data$QALD_final_weighted,
+                       Y = data$QALD_normalized,
                        g_learners = sl_lrnr,
                        h_learners = sl_lrnr,
                        b_learners = sl_lrnr2,
@@ -462,7 +468,7 @@ tmle_ie_emp_function_Russia <- function(data) {
                                   "DIABETES_MELLITUS_TYPE_2",
                                   "DIABETES_MELLITUS_TYPE_NOT_SPECIFIED",
                                   "SMOKING","OBESITY")],
-                       Y = data$QALD_final_weighted,
+                       Y = data$QALD_normalized,
                        g_learners = sl_lrnr,
                        h_learners = sl_lrnr,
                        b_learners = sl_lrnr2,
@@ -481,7 +487,7 @@ tmle_pm_emp_function_Russia <- function(data) {
                                    "DIABETES_MELLITUS_TYPE_2",
                                    "DIABETES_MELLITUS_TYPE_NOT_SPECIFIED",
                                    "SMOKING","OBESITY")],
-                       Y = data$QALD_final_weighted,
+                       Y = data$QALD_normalized,
                        g_learners = sl_lrnr,
                        h_learners = sl_lrnr,
                        b_learners = sl_lrnr2,
@@ -500,7 +506,7 @@ tmle_de_sex_function_Russia <- function(data) {
                                    "DIABETES_MELLITUS_TYPE_2",
                                    "DIABETES_MELLITUS_TYPE_NOT_SPECIFIED",
                                    "SMOKING","OBESITY")],
-                       Y = data$QALD_final_weighted,
+                       Y = data$QALD_normalized,
                        g_learners = sl_lrnr,
                        h_learners = sl_lrnr,
                        b_learners = sl_lrnr2,
@@ -519,7 +525,7 @@ tmle_ie_sex_function_Russia <- function(data) {
                                    "DIABETES_MELLITUS_TYPE_2",
                                    "DIABETES_MELLITUS_TYPE_NOT_SPECIFIED",
                                    "SMOKING","OBESITY")],
-                       Y = data$QALD_final_weighted,
+                       Y = data$QALD_normalized,
                        g_learners = sl_lrnr,
                        h_learners = sl_lrnr,
                        b_learners = sl_lrnr2,
@@ -538,7 +544,7 @@ tmle_pm_sex_function_Russia <- function(data) {
                                    "DIABETES_MELLITUS_TYPE_2",
                                    "DIABETES_MELLITUS_TYPE_NOT_SPECIFIED",
                                    "SMOKING","OBESITY")],
-                       Y = data$QALD_final_weighted,
+                       Y = data$QALD_normalized,
                        g_learners = sl_lrnr,
                        h_learners = sl_lrnr,
                        b_learners = sl_lrnr2,
