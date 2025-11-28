@@ -2,9 +2,9 @@ library(tidyverse)
 library(table1)
 library(table1)
 
-ata_Russia=read.csv("./data/QALDs_full_dataset_Russia_sep3_2025.csv")
-data_Norway=read.csv("./data/QALDs_full_dataset_Norway_aug29_2025.csv")
-data_UK=read.csv("./data/QALDs_full_dataset_UK_aug29_2025.csv")
+ata_Russia=read.csv("./data/QALDs_full_dataset_Russia.csv")
+data_Norway=read.csv("./data/QALDs_full_dataset_Norway.csv")
+data_UK=read.csv("./data/QALDs_full_dataset_UK.csv")
 
 # Norway 
 
