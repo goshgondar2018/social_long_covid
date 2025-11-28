@@ -15,13 +15,13 @@ dataset_Russia=read.csv("./data/QALDs_full_dataset_Russia.csv")
 ## subset to variables w/ both 0s and 1s & replace with ABSENTS and PRESENTS
 ### REF: https://stackoverflow.com/questions/69195830/r-summarising-factor-level-count-per-column
 dataset_Norway_binary_vars=dataset_Norway%>%
-  dplyr::select(-AGE,-SEX,-educ_yrs,-educ_yrs_quintile,-is_vaccinated,-QALD_final_weighted)
+  dplyr::select(-AGE,-SEX,-educ_yrs,-educ_yrs_quintile,-is_vaccinated,-QALD)
 dataset_Norway_binary_vars[dataset_Norway_binary_vars==1]='PRESENT'
 dataset_Norway_binary_vars[dataset_Norway_binary_vars==0]='ABSENT'
 
 dataset_Norway_final=cbind.data.frame(dataset_Norway[,c("AGE","SEX","is_vaccinated",
                                                         "educ_yrs",
-                                                        "educ_yrs_quintile","QALD_final_weighted")],
+                                                        "educ_yrs_quintile","QALD")],
                                       dataset_Norway_binary_vars)%>%
   mutate(educ_yrs_quintile=factor(educ_yrs_quintile,ordered=TRUE))
 
@@ -34,10 +34,10 @@ colnames(store_RF_results_Norway)=c("variable","inc_MSE","run")
 
 for (i in 1:100){
   
-  train_split_indices_Norway=createDataPartition(dataset_Norway_final$QALD_final_weighted,p=0.8,list=FALSE)
+  train_split_indices_Norway=createDataPartition(dataset_Norway_final$QALD,p=0.8,list=FALSE)
   dataset_train_Norway=dataset_Norway_final[train_split_indices_Norway,]
   
-  RF_train_Norway=randomForest(QALD_final_weighted~.,
+  RF_train_Norway=randomForest(QALD~.,
                                # for population correction sensitivity analysis, use sample_weight argument below
                                # sample_weight=dataset_train_Norway_weights,
                                data=dataset_train_Norway,importance=TRUE)
@@ -80,15 +80,15 @@ colnames(store_RF2_results_Norway)=c("variable","inc_MSE","run")
 ### run across 100 trees
 for (i in 1:100){
   
-  train_split_indices_Norway=createDataPartition(dataset_Norway_final$QALD_final_weighted,p=0.8,list=FALSE)
+  train_split_indices_Norway=createDataPartition(dataset_Norway_final$QALD,p=0.8,list=FALSE)
   dataset_train_Norway=dataset_Norway_final[train_split_indices_Norway,]
   
   dataset_train_Norway_x=dataset_train_Norway%>%
     mutate(PSYCHOLOGICAL_DISORDER=MENTAL_DISORDER)%>%
-    dplyr::select(-QALD_final_weighted,-MENTAL_DISORDER)
+    dplyr::select(-QALD,-MENTAL_DISORDER)
   
   dataset_train_Norway_y=dataset_train_Norway%>%
-    dplyr::select(QALD_final_weighted)
+    dplyr::select(QALD)
   
   train_Norway=c()
   train_Norway$X=dataset_train_Norway_x
@@ -302,10 +302,10 @@ for (i in 1:100){
                                                   cluster_9=train_Norway_X_ordered$MALIGNANT.NEOPLASM,
                                                   cluster_10=train_Norway_X_ordered$OTHER,
                                                   cluster_11=train_Norway_X_ordered$is_vaccinated,
-                                                  QALD_final_weighted=dataset_train_Norway_y[[1]])
+                                                  QALD=dataset_train_Norway_y[[1]])
   
   
-  RF2_train_Norway=randomForest(QALD_final_weighted~.,
+  RF2_train_Norway=randomForest(QALD~.,
                                 # for population correction sensitivity analysis, use sample_weight argument below
                                 # sample_weight=dataset_train_Norway_weights,
                                 data=all_components_df_train_Norway,importance=TRUE)
@@ -348,16 +348,16 @@ list_selected_vars_Norway=c()
 
 covvsurf_Norway <- function(data){
   for (i in 1:50){
-    train_split_indices_Norway=createDataPartition(data$QALD_final_weighted,p=0.8,list=FALSE)
+    train_split_indices_Norway=createDataPartition(data$QALD,p=0.8,list=FALSE)
     dataset_train_Norway=data[train_split_indices_Norway,]
     
     dataset_train_Norway_x=dataset_train_Norway%>%
-      select(-QALD_final_weighted)
+      select(-QALD)
     
     dataset_train_Norway_y=dataset_train_Norway%>%
-      select(QALD_final_weighted)
+      select(QALD)
     
-    dataset_train_Norway_y=as.vector(dataset_train_Norway_y$QALD_final_weighted)
+    dataset_train_Norway_y=as.vector(dataset_train_Norway_y$QALD)
     
     kval_Norway <- 2:(ncol(dataset_train_Norway_x)-1)
     
@@ -379,12 +379,12 @@ covvsurf_Norway <- function(data){
 # UK
 
 dataset_UK_binary_vars=dataset_UK%>%
-  dplyr::select(-AGE,-SEX,-QALD_final_weighted,-employment_status,-employment_status_category,-is_treated_antiviral,-severity_indicator)
+  dplyr::select(-AGE,-SEX,-QALD,-employment_status,-employment_status_category,-is_treated_antiviral,-severity_indicator)
 dataset_UK_binary_vars[dataset_UK_binary_vars==1]='PRESENT'
 dataset_UK_binary_vars[dataset_UK_binary_vars==0]='ABSENT'
 
 dataset_UK_final=cbind.data.frame(dataset_UK[,c("AGE","SEX","employment_status",
-                                                "employment_status_category","QALD_final_weighted","is_treated_antiviral","severity_indicator")],
+                                                "employment_status_category","QALD","is_treated_antiviral","severity_indicator")],
                                   dataset_UK_binary_vars)%>%
   mutate(employment_status=as.factor(employment_status))%>%
   mutate(employment_status_category=ifelse(employment_status_category=='Full-time employment',
@@ -408,10 +408,10 @@ colnames(store_RF_results_UK)=c("variable","inc_MSE","run")
 
 for (i in 1:100){
   
-  train_split_indices_UK=createDataPartition(dataset_UK_final$QALD_final_weighted,p=0.8,list=FALSE)
+  train_split_indices_UK=createDataPartition(dataset_UK_final$QALD,p=0.8,list=FALSE)
   dataset_train_UK=dataset_UK_final[train_split_indices_UK,]
   
-  RF_train_UK=randomForest(QALD_final_weighted~.,
+  RF_train_UK=randomForest(QALD~.,
                            # for population correction sensitivity analysis, use sample_weight argument below
                            # sample_weight = dataset_train_UK_weights,
                            data=dataset_train_UK,importance=TRUE)
@@ -461,15 +461,15 @@ colnames(store_RF2_results_UK)=c("variable","inc_MSE","run")
 
 for (i in 1:100){
   
-  train_split_indices_UK=createDataPartition(dataset_UK_final$QALD_final_weighted,p=0.8,list=FALSE)
+  train_split_indices_UK=createDataPartition(dataset_UK_final$QALD,p=0.8,list=FALSE)
   dataset_train_UK=dataset_UK_final[train_split_indices_UK,]
   
   dataset_train_UK_x=dataset_train_UK%>%
     mutate(PSYCHOLOGICAL_DISORDER=MENTAL_DISORDER)%>%
-    dplyr::select(-QALD_final_weighted,-MENTAL_DISORDER)
+    dplyr::select(-QALD,-MENTAL_DISORDER)
   
   dataset_train_UK_y=dataset_train_UK%>%
-    dplyr::select(QALD_final_weighted)
+    dplyr::select(QALD)
   
   train_UK=c()
   train_UK$X=dataset_train_UK_x
@@ -745,9 +745,9 @@ for (i in 1:100){
                                               cluster_12=train_UK_X_ordered$OTHER,
                                               cluster_13=train_UK_X_ordered$is_treated_antiviral,
                                               cluster_14=train_UK_X_ordered$severity_indicator,
-                                              QALD_final_weighted=dataset_train_UK_y[[1]])
+                                              QALD=dataset_train_UK_y[[1]])
   
-  RF2_train_UK=randomForest(QALD_final_weighted~.,
+  RF2_train_UK=randomForest(QALD~.,
                             # for population correction sensitivity analysis, use sample_weight argument below
                             # sample_weight = dataset_train_UK_weights,
                             data=all_components_df_train_UK,importance=TRUE)
@@ -771,7 +771,7 @@ ggsave("./figures/prediction/RF_cluster_variable_importance_UK.pdf")
 
 dataset_UK_final=cbind.data.frame(dataset_UK[,c("AGE","SEX","employment_status",
                                                 "employment_status_category",
-                                                "QALD_final_weighted","is_treated_antiviral","severity_indicator")],
+                                                "QALD","is_treated_antiviral","severity_indicator")],
                                   dataset_UK_binary_vars)%>%
   mutate(employment_status=as.factor(employment_status))%>%
   mutate(employment_status_category=as.factor(employment_status_category))
@@ -784,16 +784,16 @@ list_selected_vars_UK=c()
 
 covvsurf_UK <- function(data){
   for (i in 1:50){
-    train_split_indices_UK=createDataPartition(data$QALD_final_weighted,p=0.8,list=FALSE)
+    train_split_indices_UK=createDataPartition(data$QALD,p=0.8,list=FALSE)
     dataset_train_UK=data[train_split_indices_UK,]
     
     dataset_train_UK_x=dataset_train_UK%>%
-      select(-QALD_final_weighted)
+      select(-QALD)
     
     dataset_train_UK_y=dataset_train_UK%>%
-      select(QALD_final_weighted)
+      select(QALD)
     
-    dataset_train_UK_y=as.vector(dataset_train_UK_y$QALD_final_weighted)
+    dataset_train_UK_y=as.vector(dataset_train_UK_y$QALD)
     
     kval_UK <- 2:(ncol(dataset_train_UK_x)-1)
     
@@ -814,12 +814,12 @@ covvsurf_UK <- function(data){
 # RUSSIA
 
 dataset_Russia_binary_vars=dataset_Russia%>%
-  dplyr::select(-AGE,-SEX,-QALD_final_weighted,-employment_status,-employment_status_category,-severity_indicator)
+  dplyr::select(-AGE,-SEX,-QALD,-employment_status,-employment_status_category,-severity_indicator)
 dataset_Russia_binary_vars[dataset_Russia_binary_vars==1]='PRESENT'
 dataset_Russia_binary_vars[dataset_Russia_binary_vars==0]='ABSENT'
 
 dataset_Russia_final=cbind.data.frame(dataset_Russia[,c("AGE","SEX","employment_status",
-                                                                          "employment_status_category","severity_indicator","QALD_final_weighted")],
+                                                                          "employment_status_category","severity_indicator","QALD")],
                                                dataset_Russia_binary_vars)%>%
   mutate(employment_status=as.factor(employment_status))%>%
   mutate(employment_status_category=as.factor(employment_status_category))
@@ -831,12 +831,12 @@ colnames(store_RF_results_Russia)=c("variable","inc_MSE","run")
 
 for (i in 1:100){
   
-  train_split_indices_Russia=createDataPartition(dataset_Russia_final$QALD_final_weighted,p=0.8,list=FALSE)
+  train_split_indices_Russia=createDataPartition(dataset_Russia_final$QALD,p=0.8,list=FALSE)
   dataset_train_Russia=dataset_Russia_final[train_split_indices_Russia,]
   #https://stackoverflow.com/questions/31968623/how-to-check-whether-a-column-contains-only-identical-elements-in-r
   dataset_train_Russia=dataset_train_Russia[,apply(dataset_train_Russia, 2, function(a) length(unique(a))>1)]
   
-  RF_train_Russia=randomForest(QALD_final_weighted~.,data=dataset_train_Russia,importance=TRUE)
+  RF_train_Russia=randomForest(QALD~.,data=dataset_train_Russia,importance=TRUE)
   store_RF_results_Russia=rbind.data.frame(store_RF_results_Russia,
                                                     cbind.data.frame(variable=rownames(RF_train_Russia$importance),
                                                                      inc_MSE=as.data.frame(RF_train_Russia$importance)[,1],
@@ -878,14 +878,14 @@ colnames(store_RF2_results_Russia)=c("variable","inc_MSE","run")
 ## run across 100 trees
 for (i in 1:100){
   
-  train_split_indices_Russia=createDataPartition(dataset_Russia_final$QALD_final_weighted,p=0.8,list=FALSE)
+  train_split_indices_Russia=createDataPartition(dataset_Russia_final$QALD,p=0.8,list=FALSE)
   dataset_train_Russia=dataset_Russia_final[train_split_indices_Russia,]
   
   dataset_train_Russia_x=dataset_train_Russia%>%
-    dplyr::select(-QALD_final_weighted)
+    dplyr::select(-QALD)
   
   dataset_train_Russia_y=dataset_train_Russia%>%
-    dplyr::select(QALD_final_weighted)
+    dplyr::select(QALD)
   
   train_Russia=c()
   train_Russia$X=dataset_train_Russia_x
@@ -1072,10 +1072,10 @@ for (i in 1:100){
                                                            cluster_9=train_Russia_X_ordered$MALIGNANT_NEOPLASM,
                                                            cluster_10=train_Russia_X_ordered$OTHER,
                                                            cluster_11=train_Russia_X_ordered$severity_indicator,
-                                                           QALD_final_weighted=dataset_train_Russia_y[[1]])
+                                                           QALD=dataset_train_Russia_y[[1]])
   
   
-  RF2_train_Russia=randomForest(QALD_final_weighted~.,data=all_components_df_train_Russia,importance=TRUE)
+  RF2_train_Russia=randomForest(QALD~.,data=all_components_df_train_Russia,importance=TRUE)
   store_RF2_results_Russia=rbind.data.frame(store_RF2_results_Russia,
                                                      cbind.data.frame(variable=rownames(RF2_train_Russia$importance),
                                                                       inc_MSE=as.data.frame(RF2_train_Russia$importance)[,1],
@@ -1095,7 +1095,7 @@ ggsave("./figures/prediction/RF_cluster_variable_importance_Russia.png")
 ## MODEl-GROUPED RF (RF #3) ##
 
 dataset_Russia_final=cbind.data.frame(dataset_Russia[,c("AGE","SEX","employment_status",
-                                                                          "employment_status_category","severity_indicator","QALD_final_weighted")],
+                                                                          "employment_status_category","severity_indicator","QALD")],
                                                dataset_Russia_binary_vars)%>%
   mutate(employment_status=as.factor(employment_status))%>%
   mutate(employment_status_category=as.factor(employment_status_category))
@@ -1108,16 +1108,16 @@ list_selected_vars_Russia=c()
 
 covvsurf_Russia <- function(data){
   for (i in 1:50){
-    train_split_indices_Russia=createDataPartition(data$QALD_final_weighted,p=0.8,list=FALSE)
+    train_split_indices_Russia=createDataPartition(data$QALD,p=0.8,list=FALSE)
     dataset_train_Russia=data[train_split_indices_Russia,]
     
     dataset_train_Russia_x=dataset_train_Russia%>%
-      select(-QALD_final_weighted)
+      select(-QALD)
     
     dataset_train_Russia_y=dataset_train_Russia%>%
-      select(QALD_final_weighted)
+      select(QALD)
     
-    dataset_train_Russia_y=as.vector(dataset_train_Russia_y$QALD_final_weighted)
+    dataset_train_Russia_y=as.vector(dataset_train_Russia_y$QALD)
     
     kval_Russia <- 2:(ncol(dataset_train_Russia_x)-1)
     
