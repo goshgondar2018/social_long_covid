@@ -8,12 +8,13 @@ df_weights_Norway=read.csv("./data/df_weights_Norway.csv")
 df_weights_UK=read.csv("./data/df_weights_UK.csv")
 df_weights_Russia=read.csv("./data/df_weights_Russia.csv")
 
-data_Norway=read.csv("./data/QALDs_full_dataset_Norway.csv")
+data_Norway=read.csv("./data/QALDs_full_dataset_Norway_complete.csv")
 data_Norway_IDs=unique(data_Norway$USUBJID)
-data_UK=read.csv("./data/QALDs_full_dataset_UK.csv")
+data_UK=read.csv("./data/QALDs_full_dataset_UK_with_complete.csv")
 data_UK_IDs=unique(data_UK$USUBJID)
-data_Russia=read.csv("./data/QALDs_full_dataset_Russia.csv")
+data_Russia=read.csv("./data/QALDs_full_dataset_Russia_complete.csv")
 data_Russia_IDs=unique(data_Russia$USUBJID)
+
 
 # NORWAY
 
